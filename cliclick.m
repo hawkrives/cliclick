@@ -248,9 +248,9 @@ void help() {
     "values in case you have a setup with a second display arranged to the left of your main display, "
     "prefix the number with “=”, for instance “c:100,=-200”.)\n\n"
     "LIST OF COMMANDS\n\n";
-    
-    printf([help UTF8String]);
-    
+
+	NSLog(@"%@", help);
+
     for (i = 0; i < count; i++) {
         NSString *className = [actionClasses objectAtIndex:i];
         printf("%s\n\n", [[NSClassFromString(className) commandDescription] UTF8String]);
@@ -260,6 +260,6 @@ void help() {
                         "Author: Carsten Blüm, <carsten@bluem.net>\n"
                         "Website: www.bluem.net/jump/cliclick/\n\n",
                         VERSION,
-                        buildDateInMDYFormat()];    
-    printf([author UTF8String]);    
+                        buildDateInMDYFormat()];
+	NSLog(@"%@", author);
 }
