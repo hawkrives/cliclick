@@ -70,10 +70,10 @@ int main (int argc, const char * argv[]) {
                 [pool release];
                 return EXIT_SUCCESS;
             case 'm':
-                modeOption = [NSString stringWithCString:optarg];
+                modeOption = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
                 break;
             case 'f':
-                filepath = [NSString stringWithCString:optarg];
+                filepath = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
                 break;
             case 'r':
                 restoreOption = YES;
