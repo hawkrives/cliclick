@@ -78,7 +78,6 @@
             [actionClassInstance performActionWithData:@"" inMode:mode];
         }
         
-        [actionClassInstance release];
 
         nanosleep(&waitingtime, NULL);
     }
@@ -107,7 +106,7 @@
         [shortcuts setObject:classname forKey:shortcut];
     }
     
-    return [[shortcuts retain] autorelease];
+    return shortcuts;
 }
 
 @end

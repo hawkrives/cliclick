@@ -44,120 +44,111 @@ NSString* buildDateInMDYFormat();
 
 int main (int argc, const char * argv[]) {
 
-    NSAutoreleasePool * pool = [[NSAutoreleasePool alloc] init];
+    @autoreleasepool {
 
-    NSString *modeOption = nil;
-    NSString *filepath = nil;
-    NSArray *actions;
-    CGPoint initialMousePosition;
-    BOOL restoreOption = NO;
-    unsigned mode;
-    unsigned waitTime;
-    int optchar;
-    
-    while ((optchar = getopt(argc, (char * const *)argv, "hVm:rf:w:d")) != -1) {        
-        switch(optchar) {
-            case 'h':
-                help();
-                [pool release];
-                return EXIT_SUCCESS;
-            case 'V':
-                printf("%s\n", [[NSString stringWithFormat:@"cliclick version %@ - %@", VERSION, buildDateInMDYFormat()] UTF8String]);
-                [pool release];
-                return EXIT_SUCCESS;
-            case 'd':
-                [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://www.bluem.net/jump/donations/"]];
-                [pool release];
-                return EXIT_SUCCESS;
-            case 'm':
-                modeOption = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
-                break;
-            case 'f':
-                filepath = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
-                break;
-            case 'r':
-                restoreOption = YES;
-                break;
-            case 'w':
-                waitTime = atoi(optarg);
-                break;
-            default:
-                [pool release];
+        NSString *modeOption = nil;
+        NSString *filepath = nil;
+        NSArray *actions;
+        CGPoint initialMousePosition;
+        BOOL restoreOption = NO;
+        unsigned mode;
+        unsigned waitTime;
+        int optchar;
+        
+        while ((optchar = getopt(argc, (char * const *)argv, "hVm:rf:w:d")) != -1) {        
+            switch(optchar) {
+                case 'h':
+                    help();
+                    return EXIT_SUCCESS;
+                case 'V':
+                    printf("%s\n", [[NSString stringWithFormat:@"cliclick version %@ - %@", VERSION, buildDateInMDYFormat()] UTF8String]);
+                    return EXIT_SUCCESS;
+                case 'd':
+                    [[NSWorkspace sharedWorkspace] openURL:[NSURL URLWithString:@"http://www.bluem.net/jump/donations/"]];
+                    return EXIT_SUCCESS;
+                case 'm':
+                    modeOption = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
+                    break;
+                case 'f':
+                    filepath = [NSString stringWithCString:optarg encoding:NSUTF8StringEncoding];
+                    break;
+                case 'r':
+                    restoreOption = YES;
+                    break;
+                case 'w':
+                    waitTime = atoi(optarg);
+                    break;
+                default:
+                    ;
+                    return EXIT_FAILURE;
+            }
+        }
+        
+        if ([modeOption isEqualToString:@"verbose"]) {
+            mode = MODE_VERBOSE;
+        } else if ([modeOption isEqualToString:@"test"]) {
+            mode = MODE_TEST;        
+        } else if (!modeOption) {
+            mode = MODE_REGULAR;
+        } else {
+            printf("Only “verbose” or “test” are valid values for the -m argument\n");
+            return EXIT_FAILURE;
+        }
+        
+        if (restoreOption) {
+            CGEventRef ourEvent = CGEventCreate(NULL);
+            initialMousePosition = CGEventGetLocation(ourEvent);
+        }
+
+        if (optind == argc && !filepath) {
+            error();
+            return EXIT_FAILURE;
+        }
+
+        if (mode == MODE_TEST) {
+            printf("Running in test mode. These command(s) would be executed:\n");
+        }
+
+        if (filepath) {
+            NSFileManager *fm = [NSFileManager defaultManager];
+            if ([filepath isEqualToString:@""]) {
+                printf("Option -f expects a path: -f /path/to/the/file\n");
                 return EXIT_FAILURE;
+            }
+            if (![fm fileExistsAtPath:filepath]) {
+                printf("There is no file at %s\n", [filepath UTF8String]);
+                return EXIT_FAILURE;
+            }
+            actions = parseCommandsFile(filepath);
+        } else {
+            NSArray *arguments = [[NSProcessInfo processInfo] arguments];
+            actions = [arguments subarrayWithRange:NSMakeRange(optind, argc - optind)];
         }
-    }
-    
-    if ([modeOption isEqualToString:@"verbose"]) {
-        mode = MODE_VERBOSE;
-    } else if ([modeOption isEqualToString:@"test"]) {
-        mode = MODE_TEST;        
-    } else if (!modeOption) {
-        mode = MODE_REGULAR;
-    } else {
-        printf("Only “verbose” or “test” are valid values for the -m argument\n");
-        [pool release];
-        return EXIT_FAILURE;
-    }
-    
-    if (restoreOption) {
-        CGEventRef ourEvent = CGEventCreate(NULL);
-        initialMousePosition = CGEventGetLocation(ourEvent);
-    }
-
-    if (optind == argc && !filepath) {
-        error();
-        [pool release];
-        return EXIT_FAILURE;
-    }
-
-    if (mode == MODE_TEST) {
-        printf("Running in test mode. These command(s) would be executed:\n");
-    }
-
-    if (filepath) {
-        NSFileManager *fm = [NSFileManager defaultManager];
-        if ([filepath isEqualToString:@""]) {
-            printf("Option -f expects a path: -f /path/to/the/file\n");
-            [pool release];
+        
+        @try {
+            [ActionExecutor executeActions:actions
+                                    inMode:mode
+                       waitingMilliseconds:waitTime];
+        }
+        @catch (NSException *e) {
+            printf("%s\n", [[e reason] UTF8String]);
             return EXIT_FAILURE;
         }
-        if (![fm fileExistsAtPath:filepath]) {
-            printf("There is no file at %s\n", [filepath UTF8String]);
-            [pool release];
-            return EXIT_FAILURE;
+        @finally {
+            // Nothing to clean up
         }
-        actions = parseCommandsFile(filepath);
-    } else {
-        NSArray *arguments = [[NSProcessInfo processInfo] arguments];
-        actions = [arguments subarrayWithRange:NSMakeRange(optind, argc - optind)];
-    }
-    
-    @try {
-        [ActionExecutor executeActions:actions
-                                inMode:mode
-                   waitingMilliseconds:waitTime];
-    }
-    @catch (NSException *e) {
-        printf("%s\n", [[e reason] UTF8String]);
-        [pool release];
-        return EXIT_FAILURE;
-    }
-    @finally {
-        // Nothing to clean up
-    }
 
-    if (restoreOption) {
-        NSString *positionString = [NSString stringWithFormat:@"%d,%d", (int)initialMousePosition.x, (int)initialMousePosition.y];
-        id moveAction = [[MoveAction alloc] init];
-        [moveAction performActionWithData:positionString
-                                   inMode:MODE_REGULAR];
-        [moveAction release];
-        if (mode == MODE_VERBOSE) {
-            printf("Restoring mouse position to %s\n", [positionString UTF8String]);
+        if (restoreOption) {
+            NSString *positionString = [NSString stringWithFormat:@"%d,%d", (int)initialMousePosition.x, (int)initialMousePosition.y];
+            id moveAction = [[MoveAction alloc] init];
+            [moveAction performActionWithData:positionString
+                                       inMode:MODE_REGULAR];
+            if (mode == MODE_VERBOSE) {
+                printf("Restoring mouse position to %s\n", [positionString UTF8String]);
+            }
         }
-    }
     
-    [pool release];
+    }
     return EXIT_SUCCESS;
 }
 
@@ -189,7 +180,7 @@ NSArray* parseCommandsFile(NSString *filepath) {
         [commands addObject:command];
     }
                                        
-    return [commands autorelease];
+    return commands;
 }
 
 void error() {
